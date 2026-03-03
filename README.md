@@ -1,16 +1,29 @@
-# eventbooking
+# Studio Booking
 
-A new Flutter project.
+A Flutter & React JS project for studio event booking.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+This project is designed for admins and customers to manage studio bookings.
 
-A few resources to get you started if this is your first Flutter project:
+## Prerequisites
 
+- Flutter SDK
+- Node.js & npm (for React JS)
+
+## Resources
+
+A few resources to get you started:
+
+### Flutter
 - [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
 - [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- [Flutter Documentation](https://docs.flutter.dev/) — tutorials, samples, guidance on mobile development, and a full API reference.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### React JS
+- [React Documentation](https://react.dev/)
+
+## Project Structure
+
+- `/flutter` — Mobile app (Flutter)
+- `/event booking` — Web app (React JS)
