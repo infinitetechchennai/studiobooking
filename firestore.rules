@@ -1,0 +1,190 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================
+    // HELPERS
+    // =====================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'client') == 'admin';
+    }
+
+    function isNotSuspended() {
+      if (!isAuthenticated()) return false;
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isAdmin() || 
+        !userDoc.exists || 
+        userDoc.data.get('suspendedUntil', 0) == null || 
+        userDoc.data.get('suspendedUntil', 0) < request.time.toMillis();
+    }
+
+
+    // =====================
+    // USERS
+    // =====================
+    match /users/{userId} {
+      // READ: owner or admin
+      allow read: if isAuthenticated() &&
+        (request.auth.uid == userId || isAdmin());
+
+      // CREATE: anyone can create their own user document
+      allow create: if isAuthenticated() &&
+        request.auth.uid == userId;
+
+      // UPDATE: admin can update anything
+      // User can update ONLY their own safe fields
+      allow update: if isAuthenticated() &&
+        (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            request.resource.data.diff(resource.data)
+              .changedKeys()
+              .hasOnly(['name', 'updatedAt'])
+          )
+        );
+    }
+
+    // =====================
+    // CREATOR LISTINGS
+    // =====================
+    match /creator_listings/{listingId} {
+      // READ: anyone authenticated can read active listings
+      allow read: if isAuthenticated() && isNotSuspended();
+
+      // CREATE: creators and admins can create listings
+      allow create: if isAuthenticated() &&
+        isNotSuspended() &&
+        request.resource.data.ownerUserId == request.auth.uid;
+
+      // UPDATE: only the owner or admin can update
+      allow update: if isAuthenticated() &&
+        isNotSuspended() &&
+        (resource.data.ownerUserId == request.auth.uid || isAdmin());
+
+      // DELETE: only the owner or admin can delete
+      allow delete: if isAuthenticated() &&
+        isNotSuspended() &&
+        (resource.data.ownerUserId == request.auth.uid || isAdmin());
+    }
+
+    // =====================
+    // LISTING AVAILABILITY (Public Read)
+    // =====================
+    match /listing_availability/{bookingId} {
+      // READ: Publicly readable so users can check slots
+      allow read: if isAuthenticated();
+
+      // CREATE: Matching booking creation
+      allow create: if isAuthenticated() 
+        && isNotSuspended()
+        && !exists(/databases/$(database)/documents/listing_availability/$(bookingId));
+
+      // DELETE: owner can delete (the one who owns the listing)
+      allow delete: if isAuthenticated() &&
+        resource.data.ownerId == request.auth.uid;
+    }
+
+    // =====================
+    // BOOKINGS
+    // =====================
+    match /bookings/{bookingId} {
+      // READ: client can read their own bookings
+      allow read: if isAuthenticated() &&
+        resource.data.clientId == request.auth.uid;
+
+      // READ: creator can read bookings for their services
+      allow read: if isAuthenticated() &&
+        resource.data.creatorId == request.auth.uid;
+
+      // READ: admin can read all bookings
+      allow read: if isAdmin();
+
+      // UPDATE: only creator can update mediaDriveLink for their services
+      allow update: if isAuthenticated() &&
+        resource.data.creatorId == request.auth.uid &&
+        request.resource.data.diff(resource.data)
+          .changedKeys()
+          .hasOnly(['mediaDriveLink']);
+          
+      // CREATE: Strict check to prevent double booking
+      allow create: if isAuthenticated()
+        && isNotSuspended()
+        && request.resource.data.clientId == request.auth.uid
+        && !exists(
+         /databases/$(database)/documents/bookings/$(bookingId)
+         );
+   
+      // UPDATE: admin can update anything
+      allow update: if isAdmin();
+
+      // No deletions from frontend
+      allow delete: if false;
+    }
+
+    // =====================
+    // VENDOR CONTENT
+    // =====================
+    match /vendor_content/{docId} {
+      // READ existing docs
+      allow read: if isAuthenticated() &&
+        isNotSuspended() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      // CREATE / UPDATE new docs
+      allow create, update: if isAuthenticated() &&
+        isNotSuspended() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // DELETE existing docs
+      allow delete: if isAuthenticated() &&
+        isNotSuspended() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // =====================
+    // REPORTS
+    // =====================
+    match /reports/{reportId} {
+      // CREATE: authenticated users can create reports
+      allow create: if isAuthenticated() && isNotSuspended();
+
+      // READ: owner or admin can read
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      // UPDATE: only admin can update
+      allow update: if isAdmin();
+    }
+
+    // =====================
+    // TRANSACTIONS
+    // =====================
+    match /transactions/{transactionId} {
+      // CLIENT creates transaction (after payment)
+      allow create: if isAuthenticated() &&
+        request.resource.data.clientId == request.auth.uid;
+
+      // CLIENT can read their own payments
+      allow read: if isAuthenticated() &&
+        resource.data.clientId == request.auth.uid;
+
+      // VENDOR/CREATOR can read transactions related to them
+      allow read: if isAuthenticated() &&
+        resource.data.vendorId == request.auth.uid;
+
+      // ADMIN can read everything
+      allow read: if isAdmin();
+
+      // No updates / deletes from frontend
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "event-booking-app-a9ebe",
+                    "appId": "1:829237859997:android:b237e4aeb05d96aadea674",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "event-booking-app-a9ebe",
+                    "configurations": {
+                        "android": "1:829237859997:android:b237e4aeb05d96aadea674",
+                        "ios": "1:829237859997:ios:2ed428e7855bc2b6dea674",
+                        "macos": "1:829237859997:ios:2ed428e7855bc2b6dea674",
+                        "web": "1:829237859997:web:5bef4842e468ccefdea674",
+                        "windows": "1:829237859997:web:b1115d07576a3b26dea674"
+                    }
+                }
+            }
+        }
+    }
+}
